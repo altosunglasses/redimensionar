@@ -1,0 +1,108 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Redimensionar Imágenes en Lote</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 40px;
+      background-color: #f4f4f4;
+    }
+    .box {
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      display: inline-block;
+    }
+    input[type="file"] {
+      margin-top: 20px;
+    }
+    button {
+      margin-top: 20px;
+      padding: 10px 20px;
+      font-size: 16px;
+      border: none;
+      border-radius: 5px;
+      background-color: #007bff;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h2>Redimensiona tus imágenes a 940x1215</h2>
+    <p>Se generará un archivo ZIP con todas las imágenes convertidas.</p>
+    <input type="file" id="upload" accept="image/*" multiple>
+    <br>
+    <button onclick="processImages()">Redimensionar y Descargar</button>
+  </div>
+
+  <canvas id="canvas" style="display:none;"></canvas>
+
+  <script src="https://stuk.github.io/jszip/dist/jszip.min.js"></script>
+  <script>
+    async function processImages() {
+      const files = document.getElementById('upload').files;
+      if (!files.length) return;
+
+      const zip = new JSZip();
+      const canvas = document.getElementById('canvas');
+      const ctx = canvas.getContext('2d');
+      const targetWidth = 940;
+      const targetHeight = 1215;
+
+      for (let file of files) {
+        const img = new Image();
+        const dataUrl = await readFile(file);
+        await new Promise((resolve) => {
+          img.onload = () => {
+            canvas.width = targetWidth;
+            canvas.height = targetHeight;
+
+            // Fondo blanco
+            ctx.fillStyle = "#FFFFFF";
+            ctx.fillRect(0, 0, targetWidth, targetHeight);
+
+            // Escala proporcional
+            const ratio = Math.min(targetWidth / img.width, targetHeight / img.height);
+            const newWidth = img.width * ratio;
+            const newHeight = img.height * ratio;
+            const xOffset = (targetWidth - newWidth) / 2;
+            const yOffset = (targetHeight - newHeight) / 2;
+
+            ctx.drawImage(img, xOffset, yOffset, newWidth, newHeight);
+
+            canvas.toBlob((blob) => {
+              zip.file(file.name.replace(/\.[^/.]+$/, "") + ".jpg", blob);
+              resolve();
+            }, 'image/jpeg', 0.95);
+          };
+          img.src = dataUrl;
+        });
+      }
+
+      const zipBlob = await zip.generateAsync({type:"blob"});
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(zipBlob);
+      link.download = "imagenes_redimensionadas.zip";
+      link.click();
+    }
+
+    function readFile(file) {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target.result);
+        reader.readAsDataURL(file);
+      });
+    }
+  </script>
+</body>
+</html>
